@@ -1,0 +1,46 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+float angleOffset;
+float rectWidth;
+float rectLength;
+float yOffset;
+float circRadius;
+
+static const float PI = 3.14159265f;
+
+struct Rect
+{
+    float2 pos;
+    float2 delta1;
+    float2 delta2;
+};
+
+RWStructuredBuffer<Rect> Rects;
+
+float2 Rotate90Right(float2 vec)
+{
+    float ang = atan2(vec.y, vec.x);
+    ang += PI / 2;
+    ang %= 2 * PI;
+    float mag = sqrt(pow(vec.x, 2) + pow(vec.y, 2));
+
+    return float2(cos(ang), sin(ang)) * mag;
+}
+
+[numthreads(64, 1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    Rect rect = Rects[id.x];
+    
+    float currAngleOffset = angleOffset * id.x;
+    float2 dir = float2(cos(currAngleOffset), sin(currAngleOffset));
+    
+    rect.delta1 = dir * rectLength;
+    rect.delta2 = Rotate90Right(dir) * rectWidth;
+    
+    // Find middle of current segment and subtract half of length delta
+    rect.pos = -Rotate90Right(dir) * circRadius - dir * (rect.delta1 / 2);
+    
+    Rects[id.x] = rect;
+}
