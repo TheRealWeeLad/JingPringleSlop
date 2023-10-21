@@ -1,4 +1,3 @@
-using NUnit.Framework.Constraints;
 using UnityEngine;
 
 public class ParticleManager : MonoBehaviour
@@ -15,7 +14,7 @@ public class ParticleManager : MonoBehaviour
     [Range(0, 1f)]
     public float steepness = 0.1f;
     [Range(0, 0.5f)]
-    public float frictionStrength = 0f;
+    public float frictionStrength = 0.1f;
     public float mass = 1f;
     public bool useGradient;
     public Color particleColor = Color.white;

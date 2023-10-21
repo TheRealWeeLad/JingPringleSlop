@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class UIManagement : MonoBehaviour
@@ -46,7 +45,7 @@ public class UIManagement : MonoBehaviour
         _crossSettings = pauseMenuObj.transform.GetChild(2).gameObject;
 
         // Pause Game to Select Abilities
-        Cursor.lockState = CursorLockMode.None;
+        if (GameManager.CurrentGame.Equals("GlimboKiller")) Cursor.lockState = CursorLockMode.None;
     }
 
     private void Update()
@@ -146,7 +145,7 @@ public class UIManagement : MonoBehaviour
     // Quit Game
     public void Quit()
     {
-        GameManager.SetGame("Title");
-        SceneManager.LoadScene(0);
+        TogglePause();
+        GameManager.QuitGame();
     }
 }
