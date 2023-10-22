@@ -19,6 +19,7 @@ public class EnemyManager : MonoBehaviour
     private void Awake()
     {
         _prefabList.Add(GlimboPrefab);
+        EnemyList.Clear();
     }
 
     private void Update()

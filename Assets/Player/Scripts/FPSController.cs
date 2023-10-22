@@ -10,7 +10,7 @@ public class FPSController : MonoBehaviour
 	[Tooltip("Move speed of the character in m/s")]
 	public float MoveSpeed = 15.0f;
 	[Tooltip("Rotation speed of the character")]
-	public float RotationSpeed = 30.0f;
+	public static float RotationSpeed = 20.0f;
     [Tooltip("Acceleration and deceleration")]
 	public float SpeedChangeRate = 10.0f;
 

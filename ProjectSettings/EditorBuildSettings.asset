@@ -6,6 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 0
-    path: Assets/Scenes/Scene1.unity
+    path: 
     guid: 21ba254daf46e5d44a92eca7cc26bf73
+  - enabled: 1
+    path: Assets/Scenes/TitleScene.unity
+    guid: 68861e654ab4e6542a5e117307b12b23
+  - enabled: 1
+    path: Assets/Scenes/GlimboKiller.unity
+    guid: faa70ed340cefc44b9777ee204bee65c
   m_configObjects: {}

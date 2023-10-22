@@ -13,7 +13,6 @@ public class UIManagement : MonoBehaviour
 
     [Header("Player")]
     public GameObject player;
-    FPSController _fpsController;
 
     [Header("Menu Objects")]
     public GameObject pauseMenuObj;
@@ -34,8 +33,6 @@ public class UIManagement : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        _fpsController = player.GetComponent<FPSController>();
-
         // Pause Outer Layer
         _pauseOuterLayer = pauseMenuObj.transform.GetChild(0).gameObject;
 
@@ -44,17 +41,15 @@ public class UIManagement : MonoBehaviour
         _sensitivitySlider = _pauseSettings.transform.GetChild(2).GetComponent<Slider>();
         _crossSettings = pauseMenuObj.transform.GetChild(2).gameObject;
 
+        // Initialize value of Sensitivity Slider
+        _sensitivitySlider.value = FPSController.RotationSpeed;
+
         // Pause Game to Select Abilities
         if (GameManager.CurrentGame.Equals("GlimboKiller")) Cursor.lockState = CursorLockMode.None;
     }
 
-    private void Update()
-    {
-        if (_pauseSettings.activeInHierarchy)
-        {
-            _fpsController.RotationSpeed = _sensitivitySlider.value;
-        }
-    }
+    // Sensitivity Slider
+    public void ChangeSensitivity() => FPSController.RotationSpeed = _sensitivitySlider.value;
 
     // Toggle value of paused
     public static void TogglePause()

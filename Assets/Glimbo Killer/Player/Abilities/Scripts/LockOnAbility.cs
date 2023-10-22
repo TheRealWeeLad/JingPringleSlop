@@ -153,7 +153,7 @@ public abstract class LockOnAbility : Ability
         for (int i = 1; i < hits.Count; i++)
         {
             Transform hit = hitsTrans[i];
-            if (!entitiesHit.Contains(hit)) return hit;
+            if (!entitiesHit.Contains(hit) && hit.GetComponent<Enemy>()) return hit;
         }
         return null;
     }
