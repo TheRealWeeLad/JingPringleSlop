@@ -1,0 +1,56 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+static const float GRAVITY = -1;
+static const float3 UP = float3(0, 1, 0);
+static const float3 COLLISION_OFFSET = 0.01f;
+
+float deltaTime;
+float collisionDamping;
+float2 xRange;
+float2 yRange;
+float2 zRange;
+
+struct Particle
+{
+    float3 position;
+    float3 velocity;
+};
+
+RWStructuredBuffer<Particle> Particles;
+
+bool3 InRange(float3 pos, float3x2 range)
+{
+    bool x = pos.x > range._11 && pos.x < range._12;
+    bool y = pos.y > range._21 && pos.y < range._22;
+    bool z = pos.z > range._31 && pos.z < range._32;
+    return bool3(x, y, z);
+}
+
+[numthreads(64,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    Particle particle = Particles[id.x];
+    
+    particle.velocity += GRAVITY * deltaTime * UP; // Apply Gravity
+    
+    // Check if particle in box
+    float3x3 dir = float3x3(1, 0, 0, 0, 1, 0, 0, 0, 1); // 3x3 identity
+    float3x2 range = float3x2(xRange, yRange, zRange);
+    bool3 inRange = InRange(particle.position, range);
+    float bounceVel = collisionDamping - 1;
+    if (!inRange.x)
+        dir._11 = bounceVel;
+    if (!inRange.y)
+        dir._22 = bounceVel;
+    if (!inRange.z)
+        dir._33 = bounceVel;
+    // Assume perfectly elastic collisions
+    particle.velocity = mul(particle.velocity, dir);
+    particle.position += 0;
+    
+    particle.position += particle.velocity *
+deltaTime; // Update position based on velocity
+    
+    Particles[id.x] = particle;
+}

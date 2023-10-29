@@ -3,11 +3,11 @@ using UnityEngine.UI;
 
 public class UIManagerFluid : MonoBehaviour
 {
-    public GameObject particleManager;
+    public ParticleManager particleManager;
+    public ParticleManagerNew newParticleManager;
     public GameObject menuObj;
     public GameObject oldSettingsObj;
-
-    ParticleManager _oldParticleManager;
+    public GameObject newSettingsObj;
 
     [Space()]
     [Header("Slider Objects")]
@@ -19,32 +19,52 @@ public class UIManagerFluid : MonoBehaviour
 
     void Awake()
     {
-        particleManager = GameObject.Find("Particle Manager");
-        _oldParticleManager = particleManager.GetComponent<ParticleManager>();
-        _oldParticleManager.enabled = false;
+        GameObject particleManagerObj = GameObject.Find("Particle Manager");
+        particleManager = particleManagerObj.GetComponent<ParticleManager>();
+        particleManager.enabled = false;
+        newParticleManager = particleManagerObj.GetComponent<ParticleManagerNew>();
+        newParticleManager.enabled = false;
 
         menuObj = GameObject.Find("Menu");
         oldSettingsObj = GameObject.Find("Old Settings");
         oldSettingsObj.SetActive(false);
+        newSettingsObj = GameObject.Find("New Settings");
+        newSettingsObj.SetActive(false);
     }
 
-    void HideMenu()
-    {
-        menuObj.SetActive(false);
-    }
+    void HideMenu() => menuObj.SetActive(false);
+    void ShowMenu() => menuObj.SetActive(true);
     public void ActivateOldSimulation()
     {
         HideMenu();
-        _oldParticleManager.enabled = true;
+        particleManager.enabled = true;
         oldSettingsObj.SetActive(true);
+    }
+    public void ActivateNewSimulation()
+    {
+        HideMenu();
+        newParticleManager.enabled = true;
+        newSettingsObj.SetActive(true);
+    }
+    public void ReturnFromOld()
+    {
+        ShowMenu();
+        particleManager.enabled = false;
+        oldSettingsObj.SetActive(false);
+    }
+    public void ReturnFromNew()
+    {
+        ShowMenu();
+        newParticleManager.enabled = false;
+        newSettingsObj.SetActive(false);
     }
 
     public void Quit() => GameManager.QuitGame();
 
     // Slider Functions
-    public void ChangeDistance() => _oldParticleManager.mostEffectiveDistance = distanceSlider.value;
-    public void ChangeStability() => _oldParticleManager.stability = stabilitySlider.value;
-    public void ChangeSteepness() => _oldParticleManager.steepness = steepnessSlider.value;
-    public void ChangeFriction() => _oldParticleManager.frictionStrength = frictionSlider.value;
-    public void ChangeMass() => _oldParticleManager.mass = massSlider.value;
+    public void ChangeDistance() => particleManager.mostEffectiveDistance = distanceSlider.value;
+    public void ChangeStability() => particleManager.stability = stabilitySlider.value;
+    public void ChangeSteepness() => particleManager.steepness = steepnessSlider.value;
+    public void ChangeFriction() => particleManager.frictionStrength = frictionSlider.value;
+    public void ChangeMass() => particleManager.mass = massSlider.value;
 }

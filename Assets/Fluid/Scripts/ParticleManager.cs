@@ -36,8 +36,7 @@ public class ParticleManager : MonoBehaviour
         public Vector3 velocity;
     }
 
-    // Start is called before the first frame update
-    void Start()
+    void OnEnable()
     {
         _oneSide = (int)Mathf.Pow(numParticles, 1f / 3f);
         _particles = new GameObject[numParticles];
@@ -111,6 +110,14 @@ public class ParticleManager : MonoBehaviour
                     _particleDatas[idx] = new() { position = newPos, velocity = Vector3.zero };
                 }
             }
+        }
+    }
+
+    private void OnDisable()
+    {
+        for (int i = 0; i < _particles.Length; i++)
+        {
+            Destroy(_particles[i]);
         }
     }
 }
