@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class UIManagerFluid : MonoBehaviour
 {
@@ -10,12 +11,17 @@ public class UIManagerFluid : MonoBehaviour
     public GameObject newSettingsObj;
 
     [Space()]
-    [Header("Slider Objects")]
+    [Header("Input Objects")]
     public Slider distanceSlider;
     public Slider stabilitySlider;
     public Slider steepnessSlider;
     public Slider frictionSlider;
     public Slider massSlider;
+    public Slider dampingSlider;
+    public Slider smoothingRadiusSlider;
+    public TMP_InputField massInput;
+    public Slider targetDensitySlider;
+    public Slider pressureSlider;
 
     void Awake()
     {
@@ -67,4 +73,10 @@ public class UIManagerFluid : MonoBehaviour
     public void ChangeSteepness() => particleManager.steepness = steepnessSlider.value;
     public void ChangeFriction() => particleManager.frictionStrength = frictionSlider.value;
     public void ChangeMass() => particleManager.mass = massSlider.value;
+    // Slider Functions New
+    public void ChangeDamping() => newParticleManager.collisionDamping = dampingSlider.value;
+    public void ChangeRadius() => newParticleManager.smoothingRadius = smoothingRadiusSlider.value;
+    public void ChangeMassNew() => newParticleManager.mass = int.TryParse(massInput.text, out int result) ? result : newParticleManager.mass;
+    public void ChangeTargetDensity() => newParticleManager.targetDensity = targetDensitySlider.value;
+    public void ChangePressure() => newParticleManager.pressureMultiplier = pressureSlider.value;
 }

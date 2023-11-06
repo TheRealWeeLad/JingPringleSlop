@@ -21,6 +21,7 @@ public class ParticleManager : MonoBehaviour
     public Gradient particleColorGradient;
 
     public ComputeShader shader;
+    ComputeBuffer buffer;
     public GameObject particlePrefab;
 
     Vector3 _spawnStart = new(-0.9f, 0f, -0.9f);
@@ -43,13 +44,15 @@ public class ParticleManager : MonoBehaviour
         _particleDatas = new ParticleData[numParticles];
         _sizeVector = new(particleSize, particleSize, particleSize);
         particlePrefab.transform.localScale = _sizeVector;
+
+        buffer = new(numParticles, sizeof(float) * 6);
+
         SpawnParticles();
     }
 
     // Update is called once per frame
     void Update()
     {
-        ComputeBuffer buffer = new(numParticles, sizeof(float) * 6);
         buffer.SetData(_particleDatas);
 
         shader.SetBuffer(0, Shader.PropertyToID("Particles"), buffer);
@@ -68,7 +71,6 @@ public class ParticleManager : MonoBehaviour
         shader.Dispatch(0, groups, 1, 1);
 
         buffer.GetData(_particleDatas);
-        buffer.Dispose();
 
         UpdateParticlePositions();
     }
@@ -119,5 +121,7 @@ public class ParticleManager : MonoBehaviour
         {
             Destroy(_particles[i]);
         }
+
+        buffer.Dispose();
     }
 }
