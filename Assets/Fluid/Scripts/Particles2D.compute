@@ -3,15 +3,14 @@
 #pragma kernel CalculateDensity
 
 static const float GRAVITY = -1;
-static const float3 UP = float3(0, 1, 0);
-static const float3 COLLISION_OFFSET = 0.01f;
+static const float2 UP = float2(0, 1);
+static const float2 COLLISION_OFFSET = 0.01f;
 static const float PI = 3.14159;
 
 float deltaTime;
 float collisionDamping;
 float2 xRange;
 float2 yRange;
-float2 zRange;
 float smoothingRadius;
 float mass;
 float targetDensity;
@@ -19,20 +18,19 @@ float pressureMultiplier;
 
 struct Particle
 {
-    float3 position;
-    float3 velocity;
-    float3 pressure;
+    float2 position;
+    float2 velocity;
+    float2 pressure;
 };
 
 RWStructuredBuffer<Particle> Particles;
 RWStructuredBuffer<float> Densities;
 
-bool3 InRange(float3 pos, float3x2 range)
+bool2 InRange(float2 pos, float2x2 range)
 {
     bool x = pos.x > range._11 && pos.x < range._12;
     bool y = pos.y > range._21 && pos.y < range._22;
-    bool z = pos.z > range._31 && pos.z < range._32;
-    return bool3(x, y, z);
+    return bool2(x, y);
 }
 
 float Smoothing(float dist, float volume)
@@ -55,19 +53,19 @@ float DensityToPressure(float density)
     return (targetDensity - density) * pressureMultiplier;
 }
 
-float3 PressureForce(Particle particle, float density)
+float2 PressureForce(Particle particle, float density)
 {
     uint length, _;
     Particles.GetDimensions(length, _);
-    float3 pressure = float3(0, 0, 0);
+    float2 pressure = float2(0, 0);
     float volume = PI * pow(smoothingRadius, 4) / 6;
     for (uint i = 0; i < length; i++)
     {
-        float3 otherPos = Particles[i].position;
+        float2 otherPos = Particles[i].position;
         float dist = distance(otherPos, particle.position);
         if (dist == 0)
             continue;
-        float3 dir = (otherPos - particle.position) / dist;
+        float2 dir = (otherPos - particle.position) / dist;
         float gradient = -SmoothingDerivative(dist, volume);
         float otherDensity = Densities[i];
         if (otherDensity == 0)
@@ -80,8 +78,8 @@ float3 PressureForce(Particle particle, float density)
     return pressure;
 }
 
-[numthreads(64,1,1)]
-void CSMain (uint3 id : SV_DispatchThreadID)
+[numthreads(64, 1, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
 {
     Particle particle = Particles[id.x];
     // Apply Gravity
@@ -93,20 +91,18 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     particle.position += particle.velocity * deltaTime;
     
     // Check if particle in box
-    float3x3 dir = float3x3(1, 0, 0, 0, 1, 0, 0, 0, 1); // 3x3 identity
-    float3x2 range = float3x2(xRange, yRange, zRange);
-    bool3 inRange = InRange(particle.position, range);
+    float2x2 dir = float2x2(1, 0, 0, 1); // 2x2 identity
+    float2x2 range = float2x2(xRange, yRange);
+    bool2 inRange = InRange(particle.position, range);
     float bounceVel = collisionDamping - 1;
     if (!inRange.x)
         dir._11 = bounceVel;
     if (!inRange.y)
         dir._22 = bounceVel;
-    if (!inRange.z)
-        dir._33 = bounceVel;
     // Assume perfectly elastic collisions
     particle.velocity = mul(particle.velocity, dir);
     // Clamp position to box edge
-    particle.position = clamp(particle.position, range._11_21_31, range._12_22_32);
+    particle.position = clamp(particle.position, range._11_21, range._12_22);
     
     Particles[id.x] = particle;
 }
@@ -114,7 +110,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void CalculateDensity(uint3 id : SV_DispatchThreadID)
 {
-    float3 thisPos = Particles[id.x].position;
+    float2 thisPos = Particles[id.x].position;
     uint length, _;
     Particles.GetDimensions(length, _);
     float density = 0;

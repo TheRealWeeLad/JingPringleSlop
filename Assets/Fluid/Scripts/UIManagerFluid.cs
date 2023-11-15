@@ -5,6 +5,7 @@ using TMPro;
 public class UIManagerFluid : MonoBehaviour
 {
     public ParticleManager particleManager;
+    public ParticleManager2D particleManager2D;
     public ParticleManagerNew newParticleManager;
     public GameObject menuObj;
     public GameObject oldSettingsObj;
@@ -28,6 +29,8 @@ public class UIManagerFluid : MonoBehaviour
         GameObject particleManagerObj = GameObject.Find("Particle Manager");
         particleManager = particleManagerObj.GetComponent<ParticleManager>();
         particleManager.enabled = false;
+        particleManager2D = particleManagerObj.GetComponent<ParticleManager2D>();
+        particleManager2D.enabled = false;
         newParticleManager = particleManagerObj.GetComponent<ParticleManagerNew>();
         newParticleManager.enabled = false;
 
@@ -51,6 +54,11 @@ public class UIManagerFluid : MonoBehaviour
         HideMenu();
         newParticleManager.enabled = true;
         newSettingsObj.SetActive(true);
+    }
+    public void Activate2DSimulation()
+    {
+        HideMenu();
+        particleManager2D.enabled = true;
     }
     public void ReturnFromOld()
     {
