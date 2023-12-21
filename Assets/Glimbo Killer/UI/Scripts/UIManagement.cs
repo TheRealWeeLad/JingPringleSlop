@@ -46,6 +46,9 @@ public class UIManagement : MonoBehaviour
 
         // Pause Game to Select Abilities
         if (GameManager.CurrentGame.Equals("GlimboKiller")) Cursor.lockState = CursorLockMode.None;
+
+        // If in editor
+        if (Application.isEditor && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Equals("GlimboKiller")) Cursor.lockState = CursorLockMode.None;
     }
 
     // Sensitivity Slider

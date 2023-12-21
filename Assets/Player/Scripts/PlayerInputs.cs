@@ -6,6 +6,7 @@ public class PlayerInputs : MonoBehaviour
 	[Header("Character Input Values")]
 	public Vector2 move;
 	public Vector2 look;
+	public bool sprint;
 	public bool jump;
 
 	[Header("Movement Settings")]
@@ -40,7 +41,10 @@ public class PlayerInputs : MonoBehaviour
 		}
 		playerInp = GameObject.Find("Player").GetComponent<PlayerInput>();
 
-		if (GameManager.CurrentGame.Equals("GlimboKiller")) DeactivateInput();
+        // If current game is GlimboKiller, deactivate input to choose abilities
+        if (GameManager.CurrentGame.Equals("GlimboKiller")) DeactivateInput();
+		// If in editor
+		if (Application.isEditor && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Equals("GlimboKiller")) DeactivateInput();
     }
 
 	public void DeactivateInput()
@@ -55,6 +59,11 @@ public class PlayerInputs : MonoBehaviour
     public void OnMove(InputAction.CallbackContext context)
 	{
 		MoveInput(context.ReadValue<Vector2>());
+	}
+
+	public void OnSprint(InputAction.CallbackContext context)
+	{
+		SprintInput(context.ReadValue<float>() == 1);
 	}
 
 	public void OnLook(InputAction.CallbackContext context)
@@ -94,6 +103,11 @@ public class PlayerInputs : MonoBehaviour
     private void MoveInput(Vector2 newMoveDirection)
 	{
 		move = newMoveDirection;
+	}
+
+	private void SprintInput(bool sprinting)
+	{
+		sprint = sprinting;
 	}
 
 	private void LookInput(Vector2 newLookDirection)

@@ -536,7 +536,7 @@ Camera:
     height: 1
   near clip plane: 0.1
   far clip plane: 5000
-  field of view: 40
+  field of view: 60
   orthographic: 0
   orthographic size: 10
   m_Depth: -1
@@ -1641,7 +1641,7 @@ MonoBehaviour:
   m_LookAt: {fileID: 0}
   m_Follow: {fileID: 1932284898}
   m_Lens:
-    FieldOfView: 40
+    FieldOfView: 60
     OrthographicSize: 10
     NearClipPlane: 0.1
     FarClipPlane: 5000
@@ -8165,6 +8165,14 @@ PrefabInstance:
     - target: {fileID: 1389681353262765469, guid: b54a733e49b44a5458564ff9d4fb86b5, type: 3}
       propertyPath: m_Name
       value: Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 2861505217752978230, guid: b54a733e49b44a5458564ff9d4fb86b5, type: 3}
+      propertyPath: MoveSpeed
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 2861505217752978230, guid: b54a733e49b44a5458564ff9d4fb86b5, type: 3}
+      propertyPath: SpeedChangeRate
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 3943172515113980395, guid: b54a733e49b44a5458564ff9d4fb86b5, type: 3}
       propertyPath: m_RootOrder

@@ -279,6 +279,22 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: ae25f8e6-e4c1-40a6-9ab5-d0e078b78744
     m_ActionName: Player/Ability 3[/Keyboard/q]
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: -3744293833720304901}
+        m_TargetAssemblyTypeName: PlayerInputs, Assembly-CSharp
+        m_MethodName: OnSprint
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: fe7f9742-c255-4a88-ad2e-3448eeb51d31
+    m_ActionName: Player/Sprint[/Keyboard/leftShift]
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player
@@ -315,6 +331,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   move: {x: 0, y: 0}
   look: {x: 0, y: 0}
+  sprint: 0
   jump: 0
   analogMovement: 0
   cursorLocked: 1
@@ -337,8 +354,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   MoveSpeed: 15
-  RotationSpeed: 20
   SpeedChangeRate: 10
+  DefaultFOV: 60
+  MaxFOV: 100
   JumpHeight: 1.2
   Gravity: -15
   JumpTimeout: 0
