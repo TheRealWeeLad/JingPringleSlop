@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+public enum GrappleState { None, BeginGrapple, Grappling, EndGrapple };
+
 public class PlayerInputs : MonoBehaviour
 {
 	[Header("Character Input Values")]
@@ -8,6 +10,7 @@ public class PlayerInputs : MonoBehaviour
 	public Vector2 look;
 	public bool sprint;
 	public bool jump;
+	public GrappleState grappleState = GrappleState.None;
 
 	[Header("Movement Settings")]
 	public bool analogMovement;
@@ -47,7 +50,7 @@ public class PlayerInputs : MonoBehaviour
 		if (Application.isEditor && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Equals("GlimboKiller")) DeactivateInput();
     }
 
-	public void DeactivateInput()
+    public void DeactivateInput()
 	{
 		playerInp.DeactivateInput();
 	}
@@ -73,6 +76,20 @@ public class PlayerInputs : MonoBehaviour
 			LookInput(context.ReadValue<Vector2>());
 		}
     }
+
+	public void OnGrapple(InputAction.CallbackContext context)
+	{
+		bool nowGrappling = context.ReadValue<float>() == 1;
+		switch (grappleState)
+		{
+			case GrappleState.None:
+				if (nowGrappling) grappleState = GrappleState.BeginGrapple;
+				break;
+			case GrappleState.Grappling:
+				if (!nowGrappling) grappleState = GrappleState.EndGrapple;
+				break;
+		}
+	}
 
 	public void OnJump(InputAction.CallbackContext context)
 	{

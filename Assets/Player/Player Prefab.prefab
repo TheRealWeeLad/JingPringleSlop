@@ -295,6 +295,22 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: fe7f9742-c255-4a88-ad2e-3448eeb51d31
     m_ActionName: Player/Sprint[/Keyboard/leftShift]
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: -3744293833720304901}
+        m_TargetAssemblyTypeName: PlayerInputs, Assembly-CSharp
+        m_MethodName: OnGrapple
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: 5c2c5f7b-ac64-479a-b2f1-507b2ee94313
+    m_ActionName: Player/Grapple[/Mouse/rightButton]
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player
@@ -333,6 +349,7 @@ MonoBehaviour:
   look: {x: 0, y: 0}
   sprint: 0
   jump: 0
+  grappleState: 0
   analogMovement: 0
   cursorLocked: 1
   cursorInputForLook: 1
@@ -353,10 +370,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 77f54ecb2bcc52541a5c4ff02cfc9939, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MoveSpeed: 15
-  SpeedChangeRate: 10
+  MoveSpeed: 8
+  SpeedChangeRate: 7
   DefaultFOV: 60
-  MaxFOV: 100
+  MaxFOV: 90
   JumpHeight: 1.2
   Gravity: -15
   JumpTimeout: 0
@@ -370,6 +387,9 @@ MonoBehaviour:
   CinemachineCameraTarget: {fileID: 0}
   TopClamp: 90
   BottomClamp: -90
+  RopePrefab: {fileID: 4203708060589582786, guid: 6bfe6a3279221344cbd09d2b5498c9ca, type: 3}
+  MaxDistance: 30
+  PullStrength: 25
 --- !u!114 &4405799195459558626
 MonoBehaviour:
   m_ObjectHideFlags: 0
