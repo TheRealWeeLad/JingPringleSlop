@@ -13,7 +13,9 @@ public class FPSController : MonoBehaviour
 	[Tooltip("Rotation speed of the character")]
 	public static float RotationSpeed = 20.0f;
     [Tooltip("Acceleration and deceleration")]
-	public float SpeedChangeRate = 10.0f;
+	public float SpeedChangeRate = 7.0f;
+	[Tooltip("Maneuverability in the air")]
+	public float MidairControl = 0.3f;
 	[Tooltip("Default Field of Vision")]
 	public float DefaultFOV = 60;
 	[Tooltip("Maximum Field of Vision")]
@@ -69,10 +71,10 @@ public class FPSController : MonoBehaviour
 
 	// player
 	private Vector3 _velocity; // Player's horizontal velocity
+	private float _speedChangeRate;
 	private float _rotationVelocity;
 	private float _verticalVelocity;
 	private float _verticalPosLastFrame;
-	private const float _terminalVelocity = 53.0f;
 
 	// timeout deltatime
 	private float _jumpTimeoutDelta;
@@ -121,6 +123,13 @@ public class FPSController : MonoBehaviour
 		Grapple();
 		Move();
 		ChangeFOV();
+
+		// Update speed in player stats
+		if (PlayerStatUIManager.Instance) // Make sure HUD elements are loaded
+		{
+            PlayerStatManager.PlayerStats.Speed = (_velocity + _verticalVelocity * transform.up).magnitude;
+            PlayerStatUIManager.Instance.UpdateInfo();
+        }
 	}
 
 	private void LateUpdate()
@@ -217,6 +226,10 @@ public class FPSController : MonoBehaviour
 			return;
         }
 
+		// Reduce maneuverability in the air
+		if (Grounded) _speedChangeRate = SpeedChangeRate;
+		else _speedChangeRate = SpeedChangeRate * MidairControl;
+
         // normalise input direction
         Vector3 inputDirection = new Vector3(_input.move.x, 0.0f, _input.move.y).normalized;
 
@@ -253,16 +266,16 @@ public class FPSController : MonoBehaviour
             if (targetSpeed == Vector3.zero) parallelSpeed = _velocity.magnitude;
             else parallelSpeed = Vector3.Dot(_velocity, targetSpeed) / targetSpeed.magnitude;
 
+			// If moving forward at greater than target speed, only change direction
+			if (_velocity.magnitude > targetSpeed.magnitude + speedOffset && targetSpeed != Vector3.zero)
+			{
+				targetSpeed *= _velocity.magnitude / targetSpeed.magnitude;
+			}
             if (parallelSpeed < targetSpeed.magnitude - speedOffset || parallelSpeed > targetSpeed.magnitude + speedOffset)
             {
-                // creates curved result rather than a linear one giving a more organic speed change
-                // note T in Lerp is clamped, so we don't need to clamp our speed
-                _velocity = Vector3.Lerp(_velocity, targetSpeed * inputMagnitude, Time.deltaTime * SpeedChangeRate);
+                _velocity = Vector3.Lerp(_velocity, targetSpeed * inputMagnitude, Time.deltaTime * _speedChangeRate);
             }
-            else
-            {
-                _velocity = targetSpeed;
-            }
+            else _velocity = targetSpeed;
         }
 		// move the player
 		_controller.Move((_velocity + new Vector3(0.0f, _verticalVelocity, 0.0f)) * Time.deltaTime);
@@ -320,11 +333,8 @@ public class FPSController : MonoBehaviour
 			_input.jump = false;
 		}
 
-		// apply gravity over time if under terminal (multiply by delta time twice to linearly speed up over time)
-		if (_verticalVelocity < _terminalVelocity)
-		{
-			_verticalVelocity += Gravity * Time.deltaTime;
-		}
+		// apply gravity over time
+		_verticalVelocity += Gravity * Time.deltaTime;
 
 		_verticalPosLastFrame = transform.position.y;
 	}
@@ -333,7 +343,7 @@ public class FPSController : MonoBehaviour
 	void ChangeFOV()
 	{
 		// Use logistic curve to calculate fov
-		float midpoint = MoveSpeed * PullStrength * 0.1f;
+		float midpoint = MoveSpeed * PullStrength * 0.05f;
 		Vector3 totalVel = _velocity + new Vector3(0, _verticalVelocity, 0);
 		float fov = (MaxFOV - DefaultFOV) / (1 + Mathf.Exp(_steepness * (midpoint - totalVel.magnitude))) + DefaultFOV;
 		_mainCamera.m_Lens.FieldOfView = fov;
