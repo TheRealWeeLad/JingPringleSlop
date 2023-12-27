@@ -53,5 +53,15 @@ namespace ExtensionMethods
             // Add offset back to projection to find original rotated vector
             return newProj + offset;
         }
+
+        /// <summary>
+        /// Gets component of a vector parallel to a certain plane defined by its normal
+        /// </summary>
+        /// <param name="norm">parallel plane</param>
+        public static Vector3 PlanarComponent(this Vector3 vec, Vector3 norm)
+        {
+            norm.Normalize();
+            return vec - (norm * Vector3.Dot(vec, norm));
+        }
     }
 }

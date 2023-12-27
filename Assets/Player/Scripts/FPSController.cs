@@ -2,6 +2,9 @@ using Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+using ExtensionMethods;
+using System.Runtime.InteropServices.WindowsRuntime;
+
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(PlayerInput))]
 
@@ -10,10 +13,16 @@ public class FPSController : MonoBehaviour
 	[Header("Player")]
 	[Tooltip("Move speed of the character in m/s")]
 	public float MoveSpeed = 8.0f;
+	[Tooltip("Character's side-to-side move speed in new movement system")]
+	public float SideMoveSpeed = 3.0f;
 	[Tooltip("Rotation speed of the character")]
 	public static float RotationSpeed = 20.0f;
     [Tooltip("Acceleration and deceleration")]
-	public float SpeedChangeRate = 7.0f;
+	public float OldSpeedChangeRate = 7.0f;
+	[Tooltip("New Acceleration and deceleration")]
+	public float NewSpeedChangeRate = 30.0f;
+	[Tooltip("How fast player decelerates on ground")]
+	public float FrictionStrength = 50.0f;
 	[Tooltip("Maneuverability in the air")]
 	public float MidairControl = 0.3f;
 	[Tooltip("Default Field of Vision")]
@@ -59,9 +68,10 @@ public class FPSController : MonoBehaviour
 	[Tooltip("Grapple Strength")]
 	public float PullStrength = 10;
 
-	// Store grapple object
+	// grapple
 	GameObject _grapple;
 	Vector3 _grapplePoint;
+	float _maxGrappleDist = Mathf.Infinity;
 
 	// Most recent y position while grounded
 	public static float LastGroundedY { get; private set; }
@@ -70,10 +80,10 @@ public class FPSController : MonoBehaviour
 	private float _cinemachineTargetPitch;
 
 	// player
-	private Vector3 _velocity; // Player's horizontal velocity
+	private Vector3 _velocity;
+	private float _sideVelocity;
 	private float _speedChangeRate;
 	private float _rotationVelocity;
-	private float _verticalVelocity;
 	private float _verticalPosLastFrame;
 
 	// timeout deltatime
@@ -127,7 +137,7 @@ public class FPSController : MonoBehaviour
 		// Update speed in player stats
 		if (PlayerStatUIManager.Instance) // Make sure HUD elements are loaded
 		{
-            PlayerStatManager.PlayerStats.Speed = (_velocity + _verticalVelocity * transform.up).magnitude;
+            PlayerStatManager.PlayerStats.Speed = _velocity.magnitude;
             PlayerStatUIManager.Instance.UpdateInfo();
         }
 	}
@@ -183,6 +193,9 @@ public class FPSController : MonoBehaviour
                     _grapple = Instantiate(RopePrefab, offsetPos + distanceToHit / 2, rotation);
 					_grapple.transform.localScale = new(0.05f, 0.05f, distanceToHit.magnitude / 6);
 
+					// Lock grapple length to initial length
+					_maxGrappleDist = distanceToHit.magnitude;
+
                     _input.grappleState = GrappleState.Grappling;
                 }
 				else
@@ -197,19 +210,18 @@ public class FPSController : MonoBehaviour
 				_input.grappleState = GrappleState.None;
 				break;
 			case GrappleState.Grappling:
-				// Pull into grapple
+				// Pull into grapple, keeping grapple length under maximum
 				Vector3 grappleDir = _grapplePoint - _mainCamera.transform.position;
 
 				Vector3 acceleration = grappleDir.normalized * PullStrength;
-				_velocity += new Vector3(acceleration.x, 0, acceleration.z) * Time.deltaTime;
-				_verticalVelocity += acceleration.y * Time.deltaTime;
+				_velocity += acceleration * Time.deltaTime;
 
 				// Move grapple object
 				Vector3 grapplePos = _mainCamera.transform.position + _mainCamera.transform.right;
 				Vector3 grappleObjDir = _grapplePoint - grapplePos;
                 _grapple.transform.position = grapplePos + grappleObjDir / 2;
-				_grapple.transform.rotation = Quaternion.LookRotation(grappleObjDir) * Quaternion.Euler(0, 0, 90);
-                _grapple.transform.localScale = new(0.05f, 0.05f, grappleObjDir.magnitude / 6);
+				_grapple.transform.rotation = Quaternion.LookRotation(grappleObjDir) * Quaternion.Euler(0, 0, 90); // Original mesh offset by -90deg along z-axis
+                _grapple.transform.localScale = new(0.05f, 0.05f, grappleObjDir.magnitude / 6); // Original mesh is 6m long
 
                 break;
 			default:
@@ -222,17 +234,16 @@ public class FPSController : MonoBehaviour
 		if (_input.move == Vector2.zero && _input.grappleState.Equals(GrappleState.Grappling))
 		{
 			// Move and return
-            _controller.Move((_velocity + new Vector3(0.0f, _verticalVelocity, 0.0f)) * Time.deltaTime);
+            _controller.Move(_velocity * Time.deltaTime);
 			return;
         }
 
 		// Reduce maneuverability in the air
-		if (Grounded) _speedChangeRate = SpeedChangeRate;
-		else _speedChangeRate = SpeedChangeRate * MidairControl;
+		if (Grounded && _input.grappleState.Equals(GrappleState.None)) _speedChangeRate = NewSpeedChangeRate;
+		else _speedChangeRate = NewSpeedChangeRate * MidairControl;
 
         // normalise input direction
         Vector3 inputDirection = new Vector3(_input.move.x, 0.0f, _input.move.y).normalized;
-
         // note: Vector2's != operator uses approximation so is not floating point error prone, and is cheaper than magnitude
         // if there is a move input rotate player when the player is moving
         if (_input.move != Vector2.zero)
@@ -241,45 +252,83 @@ public class FPSController : MonoBehaviour
             inputDirection = transform.right * _input.move.x + transform.forward * _input.move.y;
         }
 
-		if (_input.grappleState.Equals(GrappleState.Grappling))
-		{
-			// ???? IDFK
-		}
-		else
-		{
-            // set target speed based on move speed
-            int multiplier = 1;
-            if (_input.sprint) multiplier = 2;
-            Vector3 targetSpeed = MoveSpeed * multiplier * inputDirection.normalized;
+        /* REWORKED HORIZONTAL MOVEMENT */
+        Vector3 acceleration = Vector3.zero;
+		Vector3 horizontalVel = _velocity.PlanarComponent(transform.up);
 
-            // a simplistic acceleration and deceleration designed to be easy to remove, replace, or iterate upon
+		// Forward/Backward movement
+		ushort multiplier = 1;
+		if (_input.sprint) multiplier = 2;
+		float forwardAccel = multiplier * SpeedChangeRate(horizontalVel.magnitude, _speedChangeRate);
+		acceleration += forwardAccel * _input.move.y * transform.forward;
 
-            // note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude
-            // if there is no input, set the target speed to 0
-            if (_input.move == Vector2.zero) targetSpeed = Vector3.zero;
+		// Velocity should rotate towards player's view direction
+		Vector3 desiredVelocity = Vector3.Dot(horizontalVel, transform.forward) * transform.forward;
+		_velocity = Vector3.Lerp(_velocity, desiredVelocity + _velocity.y * transform.up, Time.deltaTime * _speedChangeRate);
 
-            float speedOffset = 0.05f;
-            float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
+		// Apply Friction if on ground and not moving parallel to velocity
+		if (Grounded && Vector3.Dot(inputDirection, _velocity) <= 0) acceleration -= FrictionStrength * _velocity.PlanarComponent(transform.up).normalized;
 
-            // accelerate or decelerate to target speed
-            float parallelSpeed;
-            if (targetSpeed == Vector3.zero) parallelSpeed = _velocity.magnitude;
-            else parallelSpeed = Vector3.Dot(_velocity, targetSpeed) / targetSpeed.magnitude;
-
-			// If moving forward at greater than target speed, only change direction
-			if (_velocity.magnitude > targetSpeed.magnitude + speedOffset && targetSpeed != Vector3.zero)
-			{
-				targetSpeed *= _velocity.magnitude / targetSpeed.magnitude;
-			}
-            if (parallelSpeed < targetSpeed.magnitude - speedOffset || parallelSpeed > targetSpeed.magnitude + speedOffset)
-            {
-                _velocity = Vector3.Lerp(_velocity, targetSpeed * inputMagnitude, Time.deltaTime * _speedChangeRate);
-            }
-            else _velocity = targetSpeed;
+		// Side to side movement
+		float targetSideSpeed = SideMoveSpeed;
+		if (Mathf.Approximately(_input.move.x, 0)) targetSideSpeed = 0;
+		float speedOffset = 0.05f;
+        if (_sideVelocity < targetSideSpeed - speedOffset || _sideVelocity > targetSideSpeed + speedOffset)
+        {
+            // Interpolate side velocity towards SideMoveSpeed
+            _sideVelocity = Mathf.Lerp(_sideVelocity, targetSideSpeed * _input.move.x, Time.deltaTime * _speedChangeRate);
         }
+        else _sideVelocity = targetSideSpeed;
+
+        // Update velocity
+        _velocity += acceleration * Time.deltaTime;
+
+		/* OLD HORIZONTAL MOVEMENT
+        // set target speed based on move speed
+        int multiplier = 1;
+        if (_input.sprint) multiplier = 2;
+        Vector3 targetSpeed = MoveSpeed * multiplier * inputDirection.normalized;
+
+        // a simplistic acceleration and deceleration designed to be easy to remove, replace, or iterate upon
+
+        // note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude
+        // if there is no input, set the target speed to 0
+        if (_input.move == Vector2.zero) targetSpeed = Vector3.zero;
+
+        float speedOffset = 0.05f;
+        float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
+
+        // accelerate or decelerate to target speed
+        float parallelSpeed;
+        if (targetSpeed == Vector3.zero) parallelSpeed = _velocity.magnitude;
+        else parallelSpeed = Vector3.Dot(_velocity, targetSpeed) / targetSpeed.magnitude;
+
+		// If moving forward at greater than target speed, only change direction
+		if (parallelSpeed > targetSpeed.magnitude + speedOffset && targetSpeed != Vector3.zero)
+		{
+			targetSpeed *= parallelSpeed / targetSpeed.magnitude;
+		}
+        if (parallelSpeed < targetSpeed.magnitude - speedOffset || parallelSpeed > targetSpeed.magnitude + speedOffset)
+        {
+			// Only interpolate velocity parallel to xz-plane
+            _velocity = Vector3.Lerp(_velocity, targetSpeed * inputMagnitude + _velocity.y * Vector3.up, Time.deltaTime * _speedChangeRate);
+        }
+        else _velocity = targetSpeed;
+		*/
+
 		// move the player
-		_controller.Move((_velocity + new Vector3(0.0f, _verticalVelocity, 0.0f)) * Time.deltaTime);
+		_controller.Move((_velocity + _sideVelocity * transform.right) * Time.deltaTime);
     }
+	float SpeedChangeRate(float speed, float maxRate) // magic values found through experimentation (desmos :D)
+	{
+		float a = maxRate;
+		float b = 2.5f * a;
+		float d = 4 * Mathf.Pow(a, 3) / (27 * b * b); // 4a^3/27b^2
+		float c = Mathf.Pow(b / (2 * d), 1 / 3); // (b/2d)^1/3
+
+		if (speed < c) return -d * speed * speed + a; // Negative Quadratic
+		else return b / speed; // Inverse
+	}
 
     private void JumpAndGravity()
 	{
@@ -287,7 +336,7 @@ public class FPSController : MonoBehaviour
         if (Physics.CheckSphere(_mainCamera.transform.position + transform.up * 0.3f, GroundedRadius * 0.8f, GroundLayers, QueryTriggerInteraction.Ignore)
 			&& _verticalPosLastFrame < transform.position.y)
         {
-            _verticalVelocity = 0;
+            _velocity.y = 0;
         }
 
         if (_input.grappleState.Equals(GrappleState.Grappling)) return;
@@ -298,16 +347,16 @@ public class FPSController : MonoBehaviour
 			_fallTimeoutDelta = FallTimeout;
 
 			// stop our velocity dropping infinitely when grounded
-			if (_verticalVelocity < 0.0f)
+			if (_velocity.y < 0.0f)
 			{
-				_verticalVelocity = 0f;
+				_velocity.y = 0f;
 			}
 
 			// Jump
 			if (_input.jump && _jumpTimeoutDelta <= 0.0f)
 			{
 				// sqrt(-2gh) = velocity needed to reach height
-				_verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+				_velocity.y = Mathf.Sqrt(JumpHeight * -2f * Gravity);
 			}
 
 			// jump timeout
@@ -334,7 +383,7 @@ public class FPSController : MonoBehaviour
 		}
 
 		// apply gravity over time
-		_verticalVelocity += Gravity * Time.deltaTime;
+		_velocity.y += Gravity * Time.deltaTime;
 
 		_verticalPosLastFrame = transform.position.y;
 	}
@@ -344,8 +393,7 @@ public class FPSController : MonoBehaviour
 	{
 		// Use logistic curve to calculate fov
 		float midpoint = MoveSpeed * PullStrength * 0.05f;
-		Vector3 totalVel = _velocity + new Vector3(0, _verticalVelocity, 0);
-		float fov = (MaxFOV - DefaultFOV) / (1 + Mathf.Exp(_steepness * (midpoint - totalVel.magnitude))) + DefaultFOV;
+		float fov = (MaxFOV - DefaultFOV) / (1 + Mathf.Exp(_steepness * (midpoint - _velocity.magnitude))) + DefaultFOV;
 		_mainCamera.m_Lens.FieldOfView = fov;
 	}
 

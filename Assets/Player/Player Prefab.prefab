@@ -371,7 +371,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   MoveSpeed: 8
-  SpeedChangeRate: 7
+  SideMoveSpeed: 6
+  OldSpeedChangeRate: 7
+  NewSpeedChangeRate: 30
+  FrictionStrength: 50
   MidairControl: 0.3
   DefaultFOV: 60
   MaxFOV: 90
