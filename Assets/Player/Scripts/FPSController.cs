@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 using ExtensionMethods;
-using System.Runtime.InteropServices.WindowsRuntime;
 
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(PlayerInput))]
@@ -84,14 +83,19 @@ public class FPSController : MonoBehaviour
 	private float _sideVelocity;
 	private float _speedChangeRate;
 	private float _rotationVelocity;
+	private float _velocityLastFrame;
 	private float _verticalPosLastFrame;
 
 	// timeout deltatime
 	private float _jumpTimeoutDelta;
 	private float _fallTimeoutDelta;
 
-	// Logistic Function parameters
+	// FOV
 	const float _steepness = 0.2f;
+	bool _smoothing;
+	bool _smoothingLastFrame;
+	float _smoothingTime;
+	float _smoothingMaxTime;
 
 	private PlayerInput _playerInput;
 	private CharacterController _controller;
@@ -133,6 +137,9 @@ public class FPSController : MonoBehaviour
 		Grapple();
 		Move();
 		ChangeFOV();
+
+		// Update velocity last frame
+		_velocityLastFrame = _velocity.magnitude;
 
 		// Update speed in player stats
 		if (PlayerStatUIManager.Instance) // Make sure HUD elements are loaded
@@ -211,9 +218,19 @@ public class FPSController : MonoBehaviour
 				break;
 			case GrappleState.Grappling:
 				// Pull into grapple, keeping grapple length under maximum
-				Vector3 grappleDir = _grapplePoint - _mainCamera.transform.position;
+				Vector3 grappleVec = _grapplePoint - _mainCamera.transform.position;
+				Vector3 grappleDir = grappleVec.normalized;
+				Vector3 acceleration = grappleDir * PullStrength;
+				// Remove parallel component of velocity to maintain proper grapple length
+				if (grappleVec.magnitude >= _maxGrappleDist)
+				{
+					float parComp = Vector3.Dot(grappleDir, _velocity);
+					if (parComp < 0) _velocity -= parComp * grappleDir;
 
-				Vector3 acceleration = grappleDir.normalized * PullStrength;
+					// Smoothly update FOV to compensate for instant change in velocity
+					_smoothing = true;
+                }
+
 				_velocity += acceleration * Time.deltaTime;
 
 				// Move grapple object
@@ -323,6 +340,7 @@ public class FPSController : MonoBehaviour
 	{
 		float a = maxRate;
 		float b = 2.5f * a;
+		// Equations found from -dx^2 + a = b/x
 		float d = 4 * Mathf.Pow(a, 3) / (27 * b * b); // 4a^3/27b^2
 		float c = Mathf.Pow(b / (2 * d), 1 / 3); // (b/2d)^1/3
 
@@ -337,9 +355,13 @@ public class FPSController : MonoBehaviour
 			&& _verticalPosLastFrame < transform.position.y)
         {
             _velocity.y = 0;
+
+			// Smoothly update FOV to compensate for instant change in velocity
+			_smoothing = true;
         }
 
-        if (_input.grappleState.Equals(GrappleState.Grappling)) return;
+        // Disables gravity when grappling
+        // if (_input.grappleState.Equals(GrappleState.Grappling)) return;
 
         if (Grounded)
 		{
@@ -350,6 +372,8 @@ public class FPSController : MonoBehaviour
 			if (_velocity.y < 0.0f)
 			{
 				_velocity.y = 0f;
+                // Smoothly update FOV to compensate for instant change in velocity
+                _smoothing = true;
 			}
 
 			// Jump
@@ -365,7 +389,7 @@ public class FPSController : MonoBehaviour
 				_jumpTimeoutDelta -= Time.deltaTime;
 			}
 
-			LastGroundedY = transform.position.y;
+            LastGroundedY = transform.position.y;
 		}
 		else
 		{
@@ -394,7 +418,28 @@ public class FPSController : MonoBehaviour
 		// Use logistic curve to calculate fov
 		float midpoint = MoveSpeed * PullStrength * 0.05f;
 		float fov = (MaxFOV - DefaultFOV) / (1 + Mathf.Exp(_steepness * (midpoint - _velocity.magnitude))) + DefaultFOV;
-		_mainCamera.m_Lens.FieldOfView = fov;
+		if (_smoothing)
+        {
+            if (!_smoothingLastFrame) // Set up values
+			{
+                _smoothingTime = 0;
+                // Calculate time needed for smooth change using arctan function
+                float speedDiff = Mathf.Abs(_velocity.magnitude - _velocityLastFrame);
+                _smoothingMaxTime = 2 / Mathf.PI * Mathf.Atan(0.5f * speedDiff); // Capped at 1 second
+            }
+
+            if (_smoothingTime < _smoothingMaxTime)
+            {
+                fov = Mathf.Lerp(_mainCamera.m_Lens.FieldOfView, fov, _smoothingTime / _smoothingMaxTime);
+                _smoothingTime += Time.deltaTime;
+            }
+            else _smoothing = false;
+        }
+
+		// Set FOV
+        _mainCamera.m_Lens.FieldOfView = fov;
+
+        _smoothingLastFrame = _smoothing;
 	}
 
 	private static float ClampAngle(float lfAngle, float lfMin, float lfMax)

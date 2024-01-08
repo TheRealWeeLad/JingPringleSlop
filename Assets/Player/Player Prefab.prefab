@@ -379,7 +379,7 @@ MonoBehaviour:
   DefaultFOV: 60
   MaxFOV: 90
   JumpHeight: 1.2
-  Gravity: -15
+  Gravity: -10
   JumpTimeout: 0
   FallTimeout: 0.15
   Grounded: 1
@@ -393,7 +393,7 @@ MonoBehaviour:
   BottomClamp: -90
   RopePrefab: {fileID: 4203708060589582786, guid: 6bfe6a3279221344cbd09d2b5498c9ca, type: 3}
   MaxDistance: 30
-  PullStrength: 50
+  PullStrength: 30
 --- !u!114 &4405799195459558626
 MonoBehaviour:
   m_ObjectHideFlags: 0
