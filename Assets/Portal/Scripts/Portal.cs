@@ -1,5 +1,4 @@
 using UnityEngine;
-using ExtensionMethods;
 
 public class Portal : MonoBehaviour
 {
@@ -9,7 +8,7 @@ public class Portal : MonoBehaviour
             switch (_color)
             {
                 case PortalColor.Red:
-                    layer = LayerMask.NameToLayer("PortalBlue");
+                    layer = LayerMask.NameToLayer("PortalRed");
                     gameObject.layer = layer;
                     portalCam.cullingMask |= 1 << layer;
                     break;
@@ -24,14 +23,14 @@ public class Portal : MonoBehaviour
     Portal _linkedPortal;
     public Portal LinkedPortal { get => _linkedPortal; }
 
-    Transform _playerCam;
+    Camera _playerCam;
     [HideInInspector] public Camera portalCam;
     RenderTexture _tex;
     MeshRenderer _meshRenderer;
 
     private void Awake()
     {
-        _playerCam = Camera.main.transform;
+        _playerCam = Camera.main;
         portalCam = GetComponentInChildren<Camera>();
         portalCam.enabled = false;
         _meshRenderer = GetComponent<MeshRenderer>();
@@ -44,21 +43,19 @@ public class Portal : MonoBehaviour
 
     void MoveAndRotateCamera()
     {
-        // Convert player-to-portal distance into linkedPortal-to-player distance
-        Vector3 distance = _playerCam.position - transform.position;
         // Flip linkedPortal so that we get the position behind the portal
         _linkedPortal.transform.rotation = Quaternion.LookRotation(-_linkedPortal.transform.forward, _linkedPortal.transform.up);
-        Vector3 transformedDistance = _linkedPortal.transform.worldToLocalMatrix * transform.localToWorldMatrix * distance;
-        Vector3 pos = _linkedPortal.transform.position + transformedDistance;
+
+        // Convert player-to-portal distance into linkedPortal-to-player distance
+        Matrix4x4 m = _linkedPortal.transform.localToWorldMatrix * transform.worldToLocalMatrix * _playerCam.transform.localToWorldMatrix;
+
+        // Unflip linked portal
         _linkedPortal.transform.rotation = Quaternion.LookRotation(-_linkedPortal.transform.forward, _linkedPortal.transform.up);
 
-        // TODO: fix
-        Quaternion rot = transform.rotation * _playerCam.rotation;
-
-        portalCam.transform.SetPositionAndRotation(pos, rot);
+        portalCam.transform.SetPositionAndRotation(m.GetPosition(), m.rotation);
     }
 
-    // I'M HIM!!
+    // I'M HIM!! (NO IM NOT)
     //void MoveAndRotateCamera()
     //{
     //    // Move Camera to match player's relative position
@@ -69,16 +66,6 @@ public class Portal : MonoBehaviour
     //    Vector3 relPos = relForward + relUp + relRight;
 
     //    portalCam.transform.position = _linkedPortal.transform.position + relPos;
-
-    //    // BAD CODE BELOW
-    //    /*Vector3 toPlayer = _playerCam.transform.position - transform.position;
-    //    Vector3 toOtherPortal = _linkedPortal.transform.position - transform.position;
-    //    Vector3 planeNormal = Vector3.Cross(toPlayer, toOtherPortal).normalized;
-
-    //    Vector3 linkedNormal = -_linkedPortal.normal;
-    //    float angle = Mathf.Deg2Rad * Vector3.Angle(normal, linkedNormal);
-    //    Vector3 relativePos = toPlayer.RotateBy(angle, planeNormal, false);
-    //    _portalCam.transform.position = _linkedPortal.transform.position + relativePos;*/
 
     //    // Rotate Camera
     //    Vector3 camRelForward = Vector3.Dot(_playerCam.forward, normal) * -_linkedPortal.normal;
@@ -100,6 +87,24 @@ public class Portal : MonoBehaviour
     public void SetDirections(Vector3 normal, Vector3 up)
     {
         transform.rotation = Quaternion.LookRotation(normal, up);
+    }
+
+    /// <summary>
+    /// Sets the camera's oblique projection matrix so we can see through everything
+    /// before the portal
+    /// CREDIT: JoePatrick and https://www.terathon.com/lengyel/Lengyel-Oblique.pdf
+    /// </summary>
+    public void SetObliqueProjectionMatrix()
+    {
+        if (!IsLinked()) return;
+        Vector3 normal = _linkedPortal.transform.forward;
+        float nq = -Vector3.Dot(normal, _linkedPortal.transform.position);
+
+        // Define clip plane
+        Vector4 clipPlaneWorldSpace = new(normal.x, normal.y, normal.z, nq);
+        Vector4 clipPlane = Matrix4x4.Transpose(portalCam.cameraToWorldMatrix) * clipPlaneWorldSpace;
+
+        portalCam.projectionMatrix = _playerCam.CalculateObliqueMatrix(clipPlane);
     }
 
     public void CreateViewTexture()
@@ -132,6 +137,11 @@ public class Portal : MonoBehaviour
         CreateViewTexture();
 
         MoveAndRotateCamera();
+
+        SetObliqueProjectionMatrix();
+
+        // Make sure this camera sees what player sees
+        portalCam.fieldOfView = _playerCam.fieldOfView;
 
         portalCam.Render();
     }

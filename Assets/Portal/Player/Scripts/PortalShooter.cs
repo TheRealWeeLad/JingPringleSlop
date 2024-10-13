@@ -160,26 +160,6 @@ public class PortalShooter : MonoBehaviour
             if (port == null) continue;
             port.GetComponent<MeshRenderer>().material = p.IsLinked() ? linkedMat : _portalMats[i];
         }
-
-        // Reset layer of previously hit object
-        GameObject lastHit = _hitObjects[isRed];
-        if (lastHit != null)
-        {
-            lastHit.layer = _hitLayers[isRed];
-        }
-        // Camera should see through obj
-        int layer = LayerMask.NameToLayer("PortalSurface" + isRed);
-        portal.GetComponentInChildren<Camera>().cullingMask |= 1 << layer;
-        
-        GameObject hitObj = hit.collider.gameObject;
-        _hitObjects[isRed] = hitObj;
-        _hitLayers[isRed] = hitObj.layer;
-        int bothLayer = LayerMask.NameToLayer("PortalSurfaceBoth");
-        if (hitObj.layer == layer || hitObj.layer == bothLayer)
-        {
-            hitObj.layer = bothLayer;
-        }
-        else hitObj.layer = layer;
     }
 
     /// <summary>
