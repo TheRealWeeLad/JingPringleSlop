@@ -10,7 +10,7 @@ public class PortalShooter : MonoBehaviour
     public float portalHeight = 1.75f;
     [Range(50, 500)]
     public float maxDistance = 100f;
-    [Range(0, 0.2f)]
+    [Range(0, 0.3f)]
     public float portalColliderThickness = 0.1f;
     public LayerMask hitMask;
     public GameObject portalPrefab;
@@ -19,6 +19,8 @@ public class PortalShooter : MonoBehaviour
     public Material linkedMat;
 
     readonly Material[] _portalMats = new Material[2];
+    readonly int[] _portalSurfaceLayers = new int[2];
+    readonly GameObject[] _portalSurfaces = new GameObject[2];
 
     [Space()]
     public const float shootCooldown = 0.5f;
@@ -28,9 +30,6 @@ public class PortalShooter : MonoBehaviour
 
     Transform _mainCam;
     readonly Portal[] _portals = new Portal[2];
-
-    readonly GameObject[] _hitObjects = new GameObject[2];
-    readonly int[] _hitLayers = new int[3];
 
     private void Awake()
     {
@@ -113,12 +112,19 @@ public class PortalShooter : MonoBehaviour
         }
         portal.GetComponent<MeshRenderer>().material = _portalMats[isRed];
 
-        // Delete previous portal
+        // Delete previous portal and reset surface layer
         Portal previousPortal = _portals[isRed];
         if (previousPortal != null)
         {
+            _portalSurfaces[isRed].layer = _portalSurfaceLayers[isRed];
             Destroy(previousPortal.gameObject);
         }
+
+        // Temporarily change layer for collision
+        GameObject hitObject = hit.collider.gameObject;
+        _portalSurfaces[isRed] = hitObject;
+        _portalSurfaceLayers[isRed] = hitObject.layer;
+        hitObject.layer = LayerMask.NameToLayer("PortalSurface");
 
         _portals[isRed] = p;
 
