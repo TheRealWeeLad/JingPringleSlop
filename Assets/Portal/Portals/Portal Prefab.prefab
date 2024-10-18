@@ -139,8 +139,8 @@ GameObject:
   - component: {fileID: 426520905647805103}
   - component: {fileID: 7404238264353735901}
   - component: {fileID: 317519676521044862}
-  - component: {fileID: -1088023343218663635}
   - component: {fileID: 5120302380069281266}
+  - component: {fileID: 6897423991558860143}
   m_Layer: 0
   m_Name: Portal Prefab
   m_TagString: Untagged
@@ -214,8 +214,22 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &-1088023343218663635
-MeshCollider:
+--- !u!114 &5120302380069281266
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8619297905929273170}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44d5412d0b400984eb5fa507f4f71a87, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  screen: {fileID: 0}
+  portalCam: {fileID: 0}
+--- !u!65 &6897423991558860143
+BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -232,20 +246,6 @@ MeshCollider:
   m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 1
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
---- !u!114 &5120302380069281266
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8619297905929273170}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 44d5412d0b400984eb5fa507f4f71a87, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  portalCam: {fileID: 0}
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}

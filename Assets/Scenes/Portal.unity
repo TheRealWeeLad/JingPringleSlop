@@ -5232,9 +5232,10 @@ MonoBehaviour:
   portalWidth: 1
   portalHeight: 1.75
   maxDistance: 100
+  portalColliderThickness: 0.15
   hitMask:
     serializedVersion: 2
-    m_Bits: 14656
+    m_Bits: 6464
   portalPrefab: {fileID: 8619297905929273170, guid: 1b2f3d8519305a647bbf882d1edb5fe0, type: 3}
   redMat: {fileID: 2100000, guid: cc7f84b9f26b2ea43a530c95a8436924, type: 2}
   blueMat: {fileID: 2100000, guid: 3bc1dcd44991cfa4c99431d751e94a7e, type: 2}

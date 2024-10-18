@@ -10,6 +10,8 @@ public class PortalShooter : MonoBehaviour
     public float portalHeight = 1.75f;
     [Range(50, 500)]
     public float maxDistance = 100f;
+    [Range(0, 0.2f)]
+    public float portalColliderThickness = 0.1f;
     public LayerMask hitMask;
     public GameObject portalPrefab;
     public Material redMat;
@@ -124,14 +126,21 @@ public class PortalShooter : MonoBehaviour
         List<Vector3> vertices = new();
         Vector3 normal = hit.normal;
 
-        Vector2 right = Vector2.right * portalWidth;
-        Vector2 up = Vector2.up * portalHeight;
+        Vector3 right = Vector3.right * portalWidth;
+        Vector3 up = Vector3.up * portalHeight;
         vertices.Add(-right + up);
         vertices.Add(right + up);
         vertices.Add(right - up);
         vertices.Add(-right - up);
 
         mesh.SetVertices(vertices);
+
+        // Set collider size
+        BoxCollider collider = portal.GetComponent<BoxCollider>();
+        Vector3 forward = Vector3.Cross(right, up);
+        forward.Normalize();
+        // Width = right * 2, Height = up * 2
+        collider.size = right * 2 + up * 2 + forward * portalColliderThickness;
 
         // Set triangles BACKWARD to make them visible
         int[] triangles = new int[6] { 2, 1, 0, 0, 3, 2 };

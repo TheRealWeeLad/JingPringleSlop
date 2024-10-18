@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Portal : MonoBehaviour
@@ -22,23 +23,32 @@ public class Portal : MonoBehaviour
     PortalColor _color = PortalColor.Red;
     Portal _linkedPortal;
     public Portal LinkedPortal { get => _linkedPortal; }
+    [HideInInspector] public MeshRenderer screen;
 
     Camera _playerCam;
     [HideInInspector] public Camera portalCam;
     RenderTexture _tex;
-    MeshRenderer _meshRenderer;
+    readonly HashSet<PortalEntity> entitiesInPortal = new();
 
     private void Awake()
     {
         _playerCam = Camera.main;
         portalCam = GetComponentInChildren<Camera>();
         portalCam.enabled = false;
-        _meshRenderer = GetComponent<MeshRenderer>();
+        screen = GetComponent<MeshRenderer>();
     }
 
     private void LateUpdate()
     {
+        if (IsLinked() && !VisibleInCamera(_linkedPortal.screen, _playerCam) && !VisibleInCamera(screen, _playerCam)) return;
         Render();
+    }
+
+    // CREDIT: Michael Garforth and Sebastian Lague
+    bool VisibleInCamera(Renderer renderer, Camera camera)
+    {
+        Plane[] frustumPlanes = GeometryUtility.CalculateFrustumPlanes(camera);
+        return GeometryUtility.TestPlanesAABB(frustumPlanes, renderer.bounds);
     }
 
     void MoveAndRotateCamera()
@@ -111,12 +121,12 @@ public class Portal : MonoBehaviour
     {
         if (IsLinked() && (_tex == null || _tex.width != Screen.width || _tex.height != Screen.height))
         {
-            if (_tex != null) _tex.Release();
+            _tex?.Release();
             _tex = new RenderTexture(Screen.width, Screen.height, 0);
 
             portalCam.targetTexture = _tex;
 
-            _meshRenderer.material.SetTexture("_MainTex", _tex);
+            screen.material.SetTexture("_MainTex", _tex);
         }
     }
 
@@ -148,7 +158,20 @@ public class Portal : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        
+        // Update tracked entities
+        PortalEntity entity = new(other.transform);
+        if (!entitiesInPortal.Contains(entity)) entitiesInPortal.Add(entity);
+
+        // TODO: Disable collision while in portal
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        // Update tracked entities
+        PortalEntity entity = new(other.transform);
+        if (entitiesInPortal.Contains(entity)) entitiesInPortal.Remove(entity);
+
+        // TODO: Reenable collision
     }
 
     public override string ToString()
