@@ -10,7 +10,7 @@ public class PortalShooter : MonoBehaviour
     public float portalHeight = 1.75f;
     [Range(50, 500)]
     public float maxDistance = 100f;
-    [Range(0, 0.3f)]
+    [Range(0, 1f)]
     public float portalColliderThickness = 0.1f;
     public LayerMask hitMask;
     public GameObject portalPrefab;
@@ -18,6 +18,7 @@ public class PortalShooter : MonoBehaviour
     public Material blueMat;
     public Material linkedMat;
 
+    Vector2 _portalDims;
     readonly Material[] _portalMats = new Material[2];
     readonly int[] _portalSurfaceLayers = new int[2];
     readonly GameObject[] _portalSurfaces = new GameObject[2];
@@ -36,6 +37,7 @@ public class PortalShooter : MonoBehaviour
         _mainCam = Camera.main.transform;
         _portalMats[0] = redMat;
         _portalMats[1] = blueMat;
+        _portalDims = new(portalWidth, portalHeight);
     }
 
     private void Update()
@@ -45,7 +47,7 @@ public class PortalShooter : MonoBehaviour
 
     public void Shoot(bool red)
     {
-        if (_timeSinceShot < shootCooldown) return;
+        if (_timeSinceShot < shootCooldown || UIManagement.IsPaused()) return;
 
         if (Physics.Raycast(_mainCam.position, _mainCam.forward, out RaycastHit hit, maxDistance, hitMask))
         {
@@ -98,7 +100,10 @@ public class PortalShooter : MonoBehaviour
 
     void SpawnPortal(int isRed, RaycastHit hit)
     {
-        GameObject portal = Instantiate(portalPrefab, hit.point - _mainCam.forward * OFFSET, Quaternion.identity);
+        // Offset portal if it would clip through ground/ceiling/whatever
+        Vector3 spawnPoint = CalculateSpawnPoint(hit, hit.transform);
+
+        GameObject portal = Instantiate(portalPrefab, spawnPoint - _mainCam.forward * OFFSET, Quaternion.identity);
         Mesh mesh = portal.GetComponent<MeshFilter>().mesh;
         Portal p = portal.GetComponent<Portal>();
         // Initialize portal based on color
@@ -119,12 +124,6 @@ public class PortalShooter : MonoBehaviour
             _portalSurfaces[isRed].layer = _portalSurfaceLayers[isRed];
             Destroy(previousPortal.gameObject);
         }
-
-        // Temporarily change layer for collision
-        GameObject hitObject = hit.collider.gameObject;
-        _portalSurfaces[isRed] = hitObject;
-        _portalSurfaceLayers[isRed] = hitObject.layer;
-        hitObject.layer = LayerMask.NameToLayer("PortalSurface");
 
         _portals[isRed] = p;
 
@@ -147,6 +146,8 @@ public class PortalShooter : MonoBehaviour
         forward.Normalize();
         // Width = right * 2, Height = up * 2
         collider.size = right * 2 + up * 2 + forward * portalColliderThickness;
+        // Offset by half width to prevent collisions from behind
+        collider.center = forward * portalColliderThickness * 0.5f;
 
         // Set triangles BACKWARD to make them visible
         int[] triangles = new int[6] { 2, 1, 0, 0, 3, 2 };
@@ -175,6 +176,43 @@ public class PortalShooter : MonoBehaviour
             if (port == null) continue;
             port.GetComponent<MeshRenderer>().material = p.IsLinked() ? linkedMat : _portalMats[i];
         }
+
+        // Temporarily change layer for collision
+        GameObject hitObject = hit.collider.gameObject;
+        _portalSurfaces[isRed] = hitObject;
+        _portalSurfaceLayers[isRed] = hitObject.layer;
+
+        // TODO: Take portal-shaped chunk out of hit surface to walk through
+
+        hitObject.layer = LayerMask.NameToLayer("PortalSurface");
+    }
+
+    Vector3 CalculateSpawnPoint(RaycastHit hit, Transform hitObject)
+    {
+        Vector3 spawn = hit.point;
+        Vector3 normal = hit.normal;
+        Vector3 relativeRight = Vector3.Cross(normal, Vector3.up).normalized * portalWidth;
+        // Special Case if hit object is parallel to ground
+        if (relativeRight == Vector3.zero)
+            relativeRight = _mainCam.right * portalWidth;
+        Vector3 relativeUp = Vector3.Cross(relativeRight, normal).normalized * portalHeight;
+
+        Bounds objectBounds = hitObject.GetComponent<Collider>().bounds;
+        Vector3 farBound = Vector3.Max(objectBounds.max, objectBounds.min);
+        Vector3 nearBound = Vector3.Min(objectBounds.max, objectBounds.min);
+        // Check all corners
+        (int, int)[] ops = { (1, 1), (1, -1), (-1, 1), (-1, -1) };
+        for (int i = 0; i < 4; i++)
+        {
+            (int one, int two) = ops[i];
+            Vector3 corner = spawn + one * relativeRight + two * relativeUp;
+
+            Vector3 farDiff = farBound - corner;
+            Vector3 nearDiff = corner - nearBound;
+            spawn += Vector3.Min(farDiff, Vector3.zero) - Vector3.Min(nearDiff, Vector3.zero);
+        }
+
+        return spawn;
     }
 
     /// <summary>

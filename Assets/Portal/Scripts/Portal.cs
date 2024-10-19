@@ -26,7 +26,6 @@ public class Portal : MonoBehaviour
     [HideInInspector] public MeshRenderer screen;
 
     Camera _playerCam;
-    CapsuleCollider _playerCollider;
     [HideInInspector] public Camera portalCam;
     RenderTexture _tex;
     readonly HashSet<PortalEntity> entitiesInPortal = new();
@@ -34,7 +33,6 @@ public class Portal : MonoBehaviour
     private void Awake()
     {
         _playerCam = Camera.main;
-        _playerCollider = _playerCam.GetComponent<CapsuleCollider>();
         portalCam = GetComponentInChildren<Camera>();
         portalCam.enabled = false;
         screen = GetComponent<MeshRenderer>();
@@ -165,8 +163,7 @@ public class Portal : MonoBehaviour
         if (!entitiesInPortal.Contains(entity)) entitiesInPortal.Add(entity);
 
         // Disable collision while in portal
-        _playerCollider.excludeLayers |= 1 << LayerMask.NameToLayer("PortalSurface");
-        Debug.Log("IN");
+        //other.excludeLayers |= 1 << LayerMask.NameToLayer("PortalSurface");
     }
 
     private void OnTriggerExit(Collider other)
@@ -176,8 +173,7 @@ public class Portal : MonoBehaviour
         if (entitiesInPortal.Contains(entity)) entitiesInPortal.Remove(entity);
 
         // Reenable collision
-        _playerCollider.excludeLayers &= ~(1 << LayerMask.NameToLayer("PortalSurface"));
-        Debug.Log("Out");
+        //other.excludeLayers &= ~(1 << LayerMask.NameToLayer("PortalSurface"));
     }
 
     public override string ToString()
