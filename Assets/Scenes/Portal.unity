@@ -5232,7 +5232,7 @@ MonoBehaviour:
   portalWidth: 1
   portalHeight: 1.75
   maxDistance: 100
-  portalColliderThickness: 0.1
+  portalColliderThickness: 0.25
   hitMask:
     serializedVersion: 2
     m_Bits: 8512
