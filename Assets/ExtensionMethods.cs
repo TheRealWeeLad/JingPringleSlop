@@ -1,3 +1,4 @@
+using Parabox.CSG;
 using UnityEngine;
 
 namespace ExtensionMethods
@@ -23,6 +24,7 @@ namespace ExtensionMethods
             return new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)).normalized * mag;
         }
     }
+
     public static class Vector3Extensions
     {
         /// <summary>
@@ -62,6 +64,44 @@ namespace ExtensionMethods
         {
             norm.Normalize();
             return vec - (norm * Vector3.Dot(vec, norm));
+        }
+    }
+    
+    public static class CSGExtensions
+    {
+        /// <summary>
+        /// Perform a CSG function based on its index
+        /// </summary>
+        /// <param name="funcIdx"></param>
+        /// <param name="lhs">object to perform function on</param>
+        /// <param name="rhs">object to subtract/add/intersect</param>
+        /// <returns>Result GameObject</returns>
+        public static GameObject PerformCSGFunc(this GameObject lhs, GameObject rhs, CSGFunc func)
+        {
+            Model result;
+            switch (func)
+            {
+                case CSGFunc.Subtract:
+                    result = CSG.Subtract(lhs, rhs);
+                    break;
+                case CSGFunc.Union:
+                    result = CSG.Union(lhs, rhs);
+                    break;
+                case CSGFunc.Intersect:
+                    result = CSG.Intersect(lhs, rhs);
+                    break;
+                default:
+                    Debug.LogWarning(string.Format("CSG Function {0} not found", func));
+                    return null;
+            }
+
+            GameObject resultObj = new(string.Format("{0} Result", func));
+            resultObj.AddComponent<MeshFilter>().sharedMesh = result.mesh;
+            resultObj.AddComponent<MeshRenderer>().sharedMaterials = result.materials.ToArray();
+            resultObj.AddComponent<MeshCollider>();
+            resultObj.layer = lhs.layer;
+
+            return resultObj;
         }
     }
 }
