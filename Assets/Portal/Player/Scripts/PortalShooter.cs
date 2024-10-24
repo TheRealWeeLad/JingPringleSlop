@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+using ExtensionMethods;
+
+public enum CSGFunc { Union, Subtract, Intersect}
 
 public class PortalShooter : MonoBehaviour
 {
@@ -21,7 +24,9 @@ public class PortalShooter : MonoBehaviour
     Vector2 _portalDims;
     readonly Material[] _portalMats = new Material[2];
     readonly int[] _portalSurfaceLayers = new int[2];
-    readonly GameObject[] _portalSurfaces = new GameObject[2];
+    readonly GameObject[] _lastHitSurfaces = new GameObject[2];
+    readonly GameObject[] _originalSurfaces = new GameObject[2];
+    readonly GameObject[] _editedSurfaces = new GameObject[2];
 
     [Space()]
     public const float shootCooldown = 0.5f;
@@ -60,71 +65,16 @@ public class PortalShooter : MonoBehaviour
         _timeSinceShot = 0;
     }
 
-    //void ChangeGeometry(int isRed, RaycastHit hit)
-    //{
-    //    GameObject hitObj = hit.collider.gameObject;
-    //    GameObject subCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-
-    //    // Get Scale Values
-    //    Vector3 scale = hit.transform.rotation * hit.transform.localScale;
-
-    //    Vector3 normal = hit.normal;
-    //    // Special Case if hit object is parallel to ground
-    //    Vector3 right = Vector3.Cross(normal, Vector3.up).normalized;
-    //    if (right == Vector3.zero)
-    //    {
-    //        right = _mainCam.right;
-    //        subCube.transform.rotation = Quaternion.Euler(0f, _mainCam.rotation.eulerAngles.y, 0f);
-    //    }
-    //    subCube.transform.rotation *= hit.transform.rotation;
-    //    Vector3 up = Vector3.Cross(right, normal).normalized;
-
-    //    // Scale direction vectors
-    //    Vector3 rightScale = portalWidth * 2 * right;
-    //    Vector3 upScale = portalHeight * 2 * up;
-    //    Vector3 forwardScale = Vector3.Dot(scale, normal) * normal;
-    //    Vector3 newScale = Quaternion.Inverse(subCube.transform.rotation) * (rightScale + upScale + forwardScale);
-    //    newScale = new(Mathf.Abs(newScale.x), Mathf.Abs(newScale.y), Mathf.Abs(newScale.z));
-
-    //    subCube.transform.localScale = newScale;
-
-    //    subCube.transform.position = hit.point + forwardScale.magnitude / 2 * -normal;
-
-    //    // Create new mesh from subtraction
-    //    //PerformCSGFunc(CSGFunc.Subtract, hitObj, subCube);
-
-    //    // Hide original object
-    //    Destroy(subCube);
-    //    Destroy(hitObj);
-    //}
-
     void SpawnPortal(int isRed, RaycastHit hit)
     {
         // Offset portal if it would clip through ground/ceiling/whatever
         Vector3 spawnPoint = CalculateSpawnPoint(hit, hit.transform);
 
-        GameObject portal = Instantiate(portalPrefab, spawnPoint - _mainCam.forward * OFFSET, Quaternion.identity);
+        GameObject portal = InitializePortal(isRed, spawnPoint);
         Mesh mesh = portal.GetComponent<MeshFilter>().mesh;
         Portal p = portal.GetComponent<Portal>();
-        // Initialize portal based on color
-        p.Color = (PortalColor)isRed;
-        int idx = _portals.Length - 1 - isRed;
-        Portal otherPortal = _portals[idx];
-        if (otherPortal != null)
-        {
-            p.Link(otherPortal);
-            otherPortal.Link(p);
-        }
-        portal.GetComponent<MeshRenderer>().material = _portalMats[isRed];
 
-        // Delete previous portal and reset surface layer
-        Portal previousPortal = _portals[isRed];
-        if (previousPortal != null)
-        {
-            _portalSurfaces[isRed].layer = _portalSurfaceLayers[isRed];
-            Destroy(previousPortal.gameObject);
-        }
-
+        ResetPortalAndSurface(isRed);
         _portals[isRed] = p;
 
         // Set Vertices based on hit object rotation
@@ -179,13 +129,22 @@ public class PortalShooter : MonoBehaviour
 
         // Temporarily change layer for collision
         GameObject hitObject = hit.collider.gameObject;
-        _portalSurfaces[isRed] = hitObject;
+        // If we hit the same object twice, use last version of object as the hitObject
+        GameObject lastHit = _lastHitSurfaces[isRed];
+        if (lastHit != null)
+        {
+            _lastHitSurfaces[isRed] = hitObject; // Reassign
+            if (hitObject.transform.position == lastHit.transform.position)
+                hitObject = lastHit;
+        }
         _portalSurfaceLayers[isRed] = hitObject.layer;
 
-        // TODO: Take portal-shaped chunk out of hit surface to walk through
+        // Take portal-shaped chunk out of hit surface to walk through
+        ChangeGeometry(isRed, hitObject, hit.point, hit.normal);
 
         hitObject.layer = LayerMask.NameToLayer("PortalSurface");
     }
+
 
     Vector3 CalculateSpawnPoint(RaycastHit hit, Transform hitObject)
     {
@@ -215,38 +174,72 @@ public class PortalShooter : MonoBehaviour
         return spawn;
     }
 
-    /// <summary>
-    /// Perform a CSG function based on its index
-    /// </summary>
-    /// <param name="funcIdx"></param>
-    /// <param name="lhs">object to perform function on</param>
-    /// <param name="rhs">object to subtract/add/intersect</param>
-    /// <returns>Result GameObject</returns>
-    // GameObject PerformCSGFunc(CSGFunc func, GameObject lhs, GameObject rhs)
-    // {
-    //     Model result;
-    //     switch (func)
-    //     {
-    //         case CSGFunc.Subtract:
-    //             result = CSG.Subtract(lhs, rhs);
-    //             break;
-    //         case CSGFunc.Union:
-    //             result = CSG.Union(lhs, rhs);
-    //             break;
-    //         case CSGFunc.Intersect:
-    //             result = CSG.Intersect(lhs, rhs);
-    //             break;
-    //         default:
-    //             Debug.LogWarning(string.Format("CSG Function {0} not found", func));
-    //             return null;
-    //     }
+    GameObject InitializePortal(int isRed, Vector3 spawnPoint)
+    {
+        GameObject portal = Instantiate(portalPrefab, spawnPoint - _mainCam.forward * OFFSET, Quaternion.identity);
+        Portal p = portal.GetComponent<Portal>();
+        // Initialize portal based on color
+        p.Color = (PortalColor)isRed;
+        int idx = _portals.Length - 1 - isRed;
+        Portal otherPortal = _portals[idx];
+        if (otherPortal != null)
+        {
+            p.Link(otherPortal);
+            otherPortal.Link(p);
+        }
+        portal.GetComponent<MeshRenderer>().material = _portalMats[isRed];
 
-    //     GameObject resultObj = new(string.Format("{0} Result", func));
-    //     resultObj.AddComponent<MeshFilter>().sharedMesh = result.mesh;
-    //     resultObj.AddComponent<MeshRenderer>().sharedMaterials = result.materials.ToArray();
-    //     resultObj.AddComponent<MeshCollider>();
-    //     resultObj.layer = lhs.layer;
+        return portal;
+    }
 
-    //     return resultObj;
-    // }
+    void ResetPortalAndSurface(int isRed)
+    {
+        // Delete previous portal and reset surface
+        Portal previousPortal = _portals[isRed];
+        if (previousPortal != null)
+        {
+            _originalSurfaces[isRed].SetActive(true);
+            Destroy(_editedSurfaces[isRed]);
+            _lastHitSurfaces[isRed].layer = _portalSurfaceLayers[isRed];
+            Destroy(previousPortal.gameObject);
+        }
+    }
+
+    void ChangeGeometry(int isRed, GameObject hitObj, Vector3 hitPoint, Vector3 hitNormal)
+    {
+        GameObject subCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+        // Get Scale Values
+        Vector3 scale = hitObj.transform.rotation * hitObj.transform.localScale;
+
+        // Special Case if hit object is parallel to ground
+        Vector3 right = Vector3.Cross(hitNormal, Vector3.up).normalized;
+        if (right == Vector3.zero)
+        {
+            right = _mainCam.right;
+            subCube.transform.rotation = Quaternion.Euler(0f, _mainCam.rotation.eulerAngles.y, 0f);
+        }
+        subCube.transform.rotation *= hitObj.transform.rotation;
+        Vector3 up = Vector3.Cross(right, hitNormal).normalized;
+
+        // Scale direction vectors
+        Vector3 rightScale = portalWidth * 2 * right;
+        Vector3 upScale = portalHeight * 2 * up;
+        Vector3 forwardScale = Vector3.Dot(scale, hitNormal) * hitNormal;
+        Vector3 newScale = Quaternion.Inverse(subCube.transform.rotation) * (rightScale + upScale + forwardScale);
+        newScale = new(Mathf.Abs(newScale.x), Mathf.Abs(newScale.y), Mathf.Abs(newScale.z));
+
+        subCube.transform.localScale = newScale;
+
+        subCube.transform.position = hitPoint + forwardScale.magnitude / 2 * -hitNormal;
+
+        // Create new mesh from subtraction
+        GameObject result = hitObj.PerformCSGFunc(subCube, CSGFunc.Subtract);
+        _editedSurfaces[isRed] = result;
+        // Hide original object
+        result.SetActive(true);
+        hitObj.SetActive(false);
+
+        Destroy(subCube);
+    }
 }
